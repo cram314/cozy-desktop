@@ -19,6 +19,8 @@ const { otherSide } = require('./side')
 const fsutils = require('./utils/fs')
 
 /*::
+import type EventEmitter from 'events'
+
 import type Local from './local'
 import type { SideName, Metadata } from './metadata'
 import type Pouch from './pouch'
@@ -48,12 +50,14 @@ const log = logger({
 class Merge {
   /*::
   pouch: Pouch
+  events: EventEmitter
   local: Local
   remote: Remote
   */
 
-  constructor (pouch /*: Pouch */) {
+  constructor (pouch /*: Pouch */, events /*: EventEmitter */) {
     this.pouch = pouch
+    this.events = events
     // $FlowFixMe
     this.local = this.remote = null
     autoBind(this)

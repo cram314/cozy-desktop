@@ -1,5 +1,6 @@
 /* eslint-env mocha */
 
+const EventEmitter = require('events')
 const _ = require('lodash')
 const { clone, pick } = _
 const path = require('path')
@@ -20,7 +21,8 @@ describe('Merge', function () {
   before('instanciate pouch', pouchHelpers.createDatabase)
   beforeEach('instanciate merge', function () {
     this.side = 'local'
-    this.merge = new Merge(this.pouch)
+    this.events = new EventEmitter()
+    this.merge = new Merge(this.pouch, this.events)
     builders = new MetadataBuilders(this.pouch)
   })
   after('clean pouch', pouchHelpers.cleanDatabase)

@@ -263,7 +263,7 @@ class App {
   // Instanciate some objects before sync
   instanciate () {
     this.loadIgnore()
-    this.merge = new Merge(this.pouch)
+    this.merge = new Merge(this.pouch, this.events)
     this.prep = new Prep(this.merge, this.ignore, this.config)
     this.local = this.merge.local = new Local(this.config, this.prep, this.pouch, this.events)
     this.remote = this.merge.remote = new Remote(this.config, this.prep, this.pouch, this.events)

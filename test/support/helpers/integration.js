@@ -37,10 +37,10 @@ class IntegrationTestHelpers {
   */
 
   constructor (config /*: Config */, pouch /*: Pouch */, cozyClient /*: cozy.Client */) {
-    const merge = new Merge(pouch)
+    this.events = new SyncState()
+    const merge = new Merge(pouch, this.events)
     const ignore = new Ignore([])
     this.prep = new Prep(merge, ignore, config)
-    this.events = new SyncState()
     this._local = merge.local = new Local(config, this.prep, pouch, this.events)
     this._remote = merge.remote = new Remote(config, this.prep, pouch, this.events)
     this._remote.remoteCozy.client = cozyClient
