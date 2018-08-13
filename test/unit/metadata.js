@@ -6,7 +6,10 @@ const should = require('should')
 const path = require('path')
 
 const MetadataBuilders = require('../support/builders/metadata')
-const { onPlatform } = require('../support/helpers/platform')
+const {
+  onPlatform,
+  onPlatforms
+} = require('../support/helpers/platform')
 
 const {
   assignId,
@@ -15,6 +18,7 @@ const {
   invalidChecksum,
   invalidPath,
   markSide,
+  detectIdConflict,
   detectPlatformIncompatibilities,
   sameBinary,
   sameFile,
@@ -129,6 +133,118 @@ describe('metadata', function () {
       let doc = {md5sum: 'rcg7GeeTSRscbqD9i0bNnw=='}
       let ret = invalidChecksum(doc)
       ret.should.be.false()
+    })
+  })
+
+  describe('detectIdConflict', () => {
+    const idCannotBeDifferentForTheSamePath = () => {
+      it.skip('impossible: id cannot be different for the same path')
+    }
+
+    context('with same #_id, same #path, same #remote._id', () => {
+      it('detects nothing (either up-to-date or unsynced successive local changes)', () => {
+        const doc = builders.whatever().remoteId('1').build()
+        should(detectIdConflict(doc, doc)).be.undefined()
+
+        delete doc.remote
+        should(detectIdConflict(doc, doc)).be.undefined()
+      })
+    })
+
+    context('with different #_id, same #path, same #remote._id',
+      idCannotBeDifferentForTheSamePath)
+
+    context('with same #_id, different #path, same #remote._id', () => {
+      it('detects nothing (case-or-encoding-only renaming)', () => {
+        const doc1 = builders.whatever().path('foo').remoteId('1').build()
+        const doc2 = builders.whatever().path('FOO').remoteId('1').build()
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+
+        delete doc1.remote
+        delete doc2.remote
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+      })
+    })
+
+    context('with same #_id, same #path, different #remote._id', () => {
+      it('detects nothing (replacement)', () => {
+        const doc1 = builders.whatever().path('foo').remoteId('1').build()
+        const doc2 = builders.whatever().path('foo').remoteId('2').build()
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+
+        delete doc2.remote
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+      })
+    })
+
+    context('with different #_id, different #path, same #remote._id', () => {
+      it('detects nothing (move)', () => {
+        const doc1 = builders.whatever().path('foo').remoteId('1').build()
+        const doc2 = builders.whatever().path('bar').remoteId('1').build()
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+
+        delete doc1.remote
+        delete doc2.remote
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+      })
+    })
+
+    context('with different #_id, same #path, different #remote._id',
+      idCannotBeDifferentForTheSamePath)
+
+    context('with same #_id, different #path, different #remote._id', () => {
+      let doc1, doc2
+
+      beforeEach(() => {
+        doc1 = builders.whatever().path('alfred').remoteId('1').build()
+        doc2 = builders.whatever().path('Alfred').remoteId('2').build()
+      })
+
+      onPlatforms('win32', 'darwin', () => {
+        it('detects an identity conflict (cannot coexist locally)', () => {
+          const expectedConflict = {
+            _id: doc2._id,
+            paths: new Set([doc1.path, doc2.path]),
+            platform
+          }
+          should(detectIdConflict(doc1, doc2)).deepEqual(expectedConflict)
+          should(detectIdConflict(doc2, doc1)).deepEqual(expectedConflict)
+
+          delete doc1.remote
+          should(detectIdConflict(doc1, doc2)).deepEqual(expectedConflict)
+          should(detectIdConflict(doc2, doc1)).deepEqual(expectedConflict)
+        })
+      })
+
+      onPlatform('linux', () => {
+        it('detects nothing (can coexist locally)', () => {
+          should(detectIdConflict(doc1, doc2)).be.undefined()
+          should(detectIdConflict(doc2, doc1)).be.undefined()
+
+          delete doc1.remote
+          should(detectIdConflict(doc1, doc2)).be.undefined()
+          should(detectIdConflict(doc2, doc1)).be.undefined()
+        })
+      })
+    })
+
+    context('with different #_id, different #path, different #remote._id', () => {
+      it('detects nothing (totally unrelated)', () => {
+        const doc1 = builders.whatever().path('foo').remoteId('1').build()
+        const doc2 = builders.whatever().path('bar').remoteId('2').build()
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+
+        delete doc1.remote
+        should(detectIdConflict(doc1, doc2)).be.undefined()
+        should(detectIdConflict(doc2, doc1)).be.undefined()
+      })
     })
   })
 

@@ -91,6 +91,7 @@ module.exports = {
   id,
   invalidPath,
   ensureValidPath,
+  detectIdConflict,
   detectPlatformIncompatibilities,
   invalidChecksum,
   ensureValidChecksum,
@@ -181,6 +182,38 @@ function ensureValidPath (doc /*: PathObject */) {
 /*::
 export type PlatformIncompatibility = PathIssue & {docType: string}
 */
+
+/*::
+export type IdConflict = {
+  _id: string,
+  paths: Set<string>,
+  platform: string
+}
+*/
+
+/** Returns an IdConflict in case docs cannot coexist on the current platform.
+ *
+ * The order of the arguments doesn't matter: it's the responsibility of the
+ * caller to decide what to do with the docs in case of a conflict. Hence the
+ * commutativity.
+ *
+ * The side doesn't matter either for the exact same reason.
+ */
+function detectIdConflict (doc1 /*: Metadata */, doc2 /*: Metadata */) /*: ?IdConflict */ {
+  const isIdConflict = (
+    doc1._id === doc2._id &&
+    doc1.path !== doc2.path &&
+    _.get(doc1, 'remote._id') !== _.get(doc2, 'remote._id')
+  )
+
+  if (isIdConflict) {
+    return {
+      _id: doc1._id,
+      paths: new Set([doc1.path, doc2.path]),
+      platform
+    }
+  }
+}
 
 // Identifies platform incompatibilities in metadata that will prevent local
 // synchronization
