@@ -7,6 +7,7 @@ const { basename, dirname, extname, join } = require('path')
 const logger = require('./logger')
 const {
   assignMaxDate,
+  detectIdConflict,
   detectPlatformIncompatibilities,
   isUpToDate,
   markSide,
@@ -250,9 +251,20 @@ class Merge {
       if (doc.tags == null) { doc.tags = folder.tags || [] }
       if (doc.remote == null) { doc.remote = folder.remote }
       if (doc.ino == null && folder.ino) { doc.ino = folder.ino }
-      if (sameFolder(folder, doc)) {
+
+      const upToDate = sameFolder(folder, doc)
+      const idConflict = upToDate ? null : detectIdConflict(doc, folder)
+
+      if (upToDate) {
         log.info({path}, 'up to date')
         return null
+      } else if (idConflict != null) {
+        // TODO:
+        // - from remote side: don't sync doc locally
+        // - from local side: sync doc remotely & prevent folder from future
+        //   local sync until conflict is resolved by user
+        this.events.emit('id-conflict', idConflict)
+        return
       } else {
         return this.pouch.put(doc)
       }

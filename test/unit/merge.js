@@ -11,6 +11,10 @@ const Merge = require('../../core/merge')
 const metadata = require('../../core/metadata')
 
 const configHelpers = require('../support/helpers/config')
+const {
+  onPlatform,
+  onPlatforms
+} = require('../support/helpers/platform')
 const pouchHelpers = require('../support/helpers/pouch')
 const MetadataBuilders = require('../support/builders/metadata')
 
@@ -194,6 +198,41 @@ describe('Merge', function () {
 
       const result = await this.pouch.db.get(doc._id)
       should(result).deepEqual(old)
+    })
+
+    context('when folder could not coexist on Windows & macOS with one already in the Pouch', () => {
+      onPlatforms('win32', 'darwin', () => {
+        it('emits an identity conflict without saving the folder', async function () {
+          const alfred = await builders.dir().path('alfred').create()
+          const Alfred = await builders.dir().path('Alfred').build()
+          const emit = sinon.spy(this.merge.events, 'emit')
+
+          await this.merge.putFolderAsync(this.side, Alfred)
+
+          should(await this.pouch.db.get(Alfred._id)).deepEqual(alfred)
+          should(emit).have.been.calledOnce()
+          should(emit.args[0][0]).equal('id-conflict')
+          should(emit.args[0][1]).deepEqual({
+            _id: alfred._id,
+            paths: new Set([alfred.path, Alfred.path]),
+            platform: process.platform
+          })
+        })
+      })
+
+      onPlatform('linux', () => {
+        it('does not emit any identity conflict', async function () {
+          const alfred = await builders.dir().path('alfred').create()
+          const Alfred = await builders.dir().path('Alfred').build()
+          const emit = sinon.spy(this.merge.events, 'emit')
+
+          await this.merge.putFolderAsync(this.side, Alfred)
+
+          should(await this.pouch.db.get(Alfred._id)).deepEqual(Alfred)
+          should(await this.pouch.db.get(alfred._id)).deepEqual(alfred)
+          should(emit).not.have.been.called()
+        })
+      })
     })
   })
 
